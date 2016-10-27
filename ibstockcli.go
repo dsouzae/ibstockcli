@@ -48,6 +48,7 @@ type IBManager struct {
 	opts        ib.EngineOptions
 	paper       bool
 	elog        map[string]*ExecutionInfo
+	realtimeMap map[int64]string
 }
 
 func NewOrder() (ib.Order, error) {
@@ -270,7 +271,9 @@ func doRequestRealTimeBars(mgr *IBManager, symbol string) {
 		UseRTH:     true,
 	}
 
-	request.SetID(mgr.NextOrderID())
+	id := mgr.NextOrderID()
+	request.SetID(id)
+	mgr.realtimeMap[id] = symbol
 
 	mgr.engine.Send(&request)
 
@@ -432,7 +435,13 @@ func engineLoop(ibmanager *IBManager) {
 			case (*ib.RealtimeBars):
 				r := r.(*ib.RealtimeBars)
 
-				log.Printf("%v - Open: %10.2f Close: %10.2f Low %10.2f High %10.2f Volume %10.2f Count %10v WAP %10.2f\n",
+				symbol, ok := ibmanager.realtimeMap[r.ID()]
+				if !ok {
+					symbol = ""
+				}
+
+				log.Printf("%10s: %v - Open: %10.2f Close: %10.2f Low %10.2f High %10.2f Volume %10.2f Count %10v WAP %10.2f\n",
+					symbol,
 					time.Unix(r.Time, 0).Format("15:04:05"),
 					r.Open,
 					r.Close,
