@@ -262,6 +262,21 @@ func doStopMarket(mgr *IBManager, symbol string, quantity uint64, stopprice floa
 	log.Printf("%s: Sending STP SELL for %s, quantity %v, - %s - %v", mgr.label, symbol, quantity, request.Order.OrderType, request.Order.AuxPrice)
 }
 
+func doRequestRealTimeBars(mgr *IBManager, symbol string) {
+	request := ib.RequestRealTimeBars{
+		Contract:   NewContract(symbol),
+		BarSize:    5,
+		WhatToShow: ib.RealTimeTrades,
+		UseRTH:     true,
+	}
+
+	request.SetID(mgr.NextOrderID())
+
+	mgr.engine.Send(&request)
+
+	log.Printf("%s: Sending RealTime Bars For %s", mgr.label, symbol)
+}
+
 func (m *IBManager) NextOrderID() int64 {
 	val := m.nextOrderid
 
@@ -413,6 +428,19 @@ func engineLoop(ibmanager *IBManager) {
 						x.Commission.Commission,
 						x.ExecutionData.Exec.Exchange)
 				}
+
+			case (*ib.RealtimeBars):
+				r := r.(*ib.RealtimeBars)
+
+				log.Printf("%v - Open: %10.2f Close: %10.2f Low %10.2f High %10.2f Volume %10.2f Count %10v WAP %10.2f\n",
+					time.Unix(r.Time, 0).Format("15:04:05"),
+					r.Open,
+					r.Close,
+					r.Low,
+					r.High,
+					r.Volume,
+					r.Count,
+					r.WAP)
 
 			case (*ib.PositionEnd):
 
@@ -898,6 +926,17 @@ L:
 				gCancel = false
 			}
 			fmt.Printf("acct-cancel status %v\n", gCancel)
+
+		case command == "realtimebar":
+			if len(strs) != 2 {
+				fmt.Printf("realtimebar <symbol>\n")
+				continue
+			}
+
+			applyFunc(false, acctselect, acct, func(ac *IBManager) error {
+				doRequestRealTimeBars(ac, strs[1])
+				return nil
+			})
 
 		case command == "cancel":
 			lastresult = ""
