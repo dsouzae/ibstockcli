@@ -531,7 +531,8 @@ func main() {
 				Gateway: a.Gateway,
 				Client:  a.Client,
 			},
-			elog: make(map[string]*ExecutionInfo),
+			elog:        make(map[string]*ExecutionInfo),
+			realtimeMap: make(map[int64]string),
 		})
 	}
 
